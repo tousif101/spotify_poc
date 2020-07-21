@@ -1,0 +1,21 @@
+{
+    "name": "playlist-hunter",
+    "version": "1.0.0",
+    "description": "Search Through Spotify Playlist and Create an Album",
+    "main": "app.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start-dev": "nodemon ./app.js"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "cookie-parser": "^1.4.4",
+        "cors": "^2.8.5",
+        "express": "^4.17.1",
+        "nodemon": "^2.0.2",
+        "querystring": "^0.2.0",
+        "request": "^2.88.0",
+        "request-promise": "^4.2.5"
+    }
+}

@@ -37,7 +37,6 @@ app.use(express.static(__dirname + '/public'))
     var state = generateRandomString(16);
     res.cookie(stateKey, state);
   
-    // your application requests authorization
     var scope = 'playlist-modify-public user-read-private user-read-email';
     res.redirect('https://accounts.spotify.com/authorize?' +
       querystring.stringify({
@@ -50,10 +49,6 @@ app.use(express.static(__dirname + '/public'))
   });
 
   app.get('/callback', function(req, res) {
-
-    // your application requests refresh and access tokens
-    // after checking the state parameter
-  
     var code = req.query.code || null;
     var state = req.query.state || null;
     var storedState = req.cookies ? req.cookies[stateKey] : null;
@@ -112,52 +107,52 @@ app.use(express.static(__dirname + '/public'))
   });
 
 
-
-
-
 /*
-    Frontend- searchs for playlist/moode 
-    Backend- take those and searches for playlists
-    -
-    - 
+  @TODO: 
+    Clean up code
+    Proper Logging 
+    Proper Error Handling 
 */
 
-/*
-    Pass the header into the smaller functions 
-    Functions make the api calls. 
-*/
-var createPlaylist = function(){
-
-}
 
 app.get('/search', async function(req,res) {
     var access_token  = req.query.access_token
     var search_input = req.query.search_input
-    // console.log(search_input)
     var tracks = await apiOffset(access_token,search_input)
-    // console.log(tracks.length)
     var trackInfo = await getTrackInfo(access_token, tracks)
-    //For each track info that we filtered. Create a playlist, and then add it. 
-    //Each track will URI. Create the playlist, loops through trackInfoList 
-    //URI List call: https://developer.spotify.com/documentation/web-api/reference/playlists/add-tracks-to-playlist/
-    //Create method here to take in trackInfo 
-    console.log(trackInfo.length)
-    var playlist = await callAddSongsToPlaylist(access_token, trackInfo)
 
-    //Ask a user for the name of the playlist. Create the play list, search the songs, add it in. 
-    res.send("YES");
+    // var playlist = await callAddSongsToPlaylist(access_token, trackInfo)
+    res.status(200).send(trackInfo)
 });
 
-const createPlayList = async (access_token) =>{
+app.post('/create_playlist', async function(req,res) {
+  var playlistName = req.body.playlistName
+  var description = req.body.description
+  var access_token  = req.query.access_token
+  var playlist = await createPlayList(access_token,playlistName,description)
+
+  //Have frontend store the playlistIds 
+  res.status(200).send(playlist)
+});
+
+app.post('/update_playlist', async function(req,res) {
+  var trackInfo = req.body.trackInfo
+  var playlistId  = req.body.playlistId
+  var playlist = await callAddSongsToPlaylist(access_token, trackInfo)
+
+  res.status(200).send(playlist)
+});
+
+const createPlayList = async (access_token,playlistName,description) =>{
   var options = {
     method: 'POST',
     url: 'https://api.spotify.com/v1/users/1295357638/playlists',
     headers: { 'Authorization': 'Bearer ' + access_token },
     body:{
-        name:"Tousif Playlist GYMMM",
+        name:playlistName,
         public: true,
         collaborative:false,
-        description:"Testing this app"
+        description:description
     },
     json: true
   };
@@ -185,11 +180,6 @@ const addTrackPlaylist = async (access_token,playlistId,uris) =>{
 
 const populatePlaylist = async (access_token,playlistId,uris) =>{
   var songs = []
-  //While songs is getting appended 
-  //Uris has 500 songs 
-  //Api takes 100 songs. 
-  //[a, b, c, d, .......]
-
   var songCounter = 0
   for(var i = 0; i<uris.length; i ++){
     var item = uris[i]
@@ -205,25 +195,21 @@ const populatePlaylist = async (access_token,playlistId,uris) =>{
     await addTrackPlaylist(access_token, playlistId,songs)
     songs = []
   }
-
 }
 
 
-const callAddSongsToPlaylist = async (access_token, tracks) => {
-  let payload = await createPlayList(access_token)
-  var playlistId = payload.id
+const callAddSongsToPlaylist = async (access_token,tracks,playlistId) => {
   var trackUris = []
   for(var i =0; i < tracks.length; i++){
     var track = tracks[i]
     trackUris.push(track.uri)
   }
-  let response = await populatePlaylist(access_token,payload.id,trackUris)
+  let response = await populatePlaylist(access_token,playlistId,trackUris)
   console.log(response)
   return response
 }
 
-//refactor idea 
-//Make this generic, pass the url throughout each time 
+
 const callPlaylistApi = async (access_token, url) =>{
   var options = {
     url: url,
@@ -247,17 +233,10 @@ const getTracks = async (access_token,url) => {
 }
 
 /*
-
-*/
-
-
-/*
  tracks: {
     href: 'https://api.spotify.com/v1/playlists/4XA7qJO7AnflZLUJE6Gmeu/tracks',
     total: 161
-  },
-
-Can get the track info as well 
+  }
 */
 var playlistIds = []
 var trackUrl =[]
@@ -269,14 +248,14 @@ var getPlayListIds = function(playlists){
   }
 }
 
-
-//TODO: Filter the playlists somehow 
+/*
+  @TODO: Filter the playlists somehow 
+*/
 const getTrackInfo = async (access_token,trackUrls) => {
   var tracks = []
   
   for(var i =0; i < trackUrls.length; i++){
     var url = trackUrls[i]
-    //console.log(url)
     var item = await getTracks(access_token,url)
 
     for(var j=0; j < item.items.length; j++){
@@ -300,24 +279,6 @@ const getTrackInfo = async (access_token,trackUrls) => {
   return tracks
 }
 
-//Search through songs for one playlist. 
-//returns a list of tracks
-const trackPagination = async (access_token, url) => {
-  var tracksResponse = await getTracks(access_token,url)
-  trackList = tracksResponse.items 
-  //For each track in tracklist
-  //Apend the track to a list
-
-  //Do the pagiation if thre is a next. 
-  nextUrl = tracksResponse.next
-  offset = tracksResponse.offset
-  while(nextUrl != null){
-    
-  }
-  //Loop logic, call apis with offset 
-
-  //append to the list 
-}
 
 var apiOffset = async function(access_token, search_input){
   //Create the url here?! 
@@ -359,41 +320,9 @@ var apiOffset = async function(access_token, search_input){
 Refactor: 
 Make a file with all the api calls for the spotify api. 
 Layer over the API
+
+Make a Pagination service thats only job is to paginate.
 */
-
-
-/*
-  Create a Playlist
-  Get name from and all other info from 
-  A modal form
-*/
-app.get('/create_playlist', function(req,res) {
-    var access_token  = req.query.access_token
-    var options = {
-        url: 'https://api.spotify.com/v1/users/1295357638/playlists',
-        headers: { 'Authorization': 'Bearer ' + access_token },
-        body:{
-            name:"TESTINGAPI",
-            public: true,
-            collaborative:false,
-            description:"TEST"
-        },
-        json: true
-      };
-
-      request.post(options, function(error, response, body) {
-        if (!error && response.statusCode === 201) {
-            console.log(body);
-            res.send({
-                'DONE':'DONE'
-            });
-          }else{
-              console.log(error)
-              console.log(response.statusCode)
-          }
-      });
-});
-
 app.get('/refresh_token', function(req, res) {
     // requesting access token from refresh token
     var refresh_token = req.query.refresh_token;

@@ -28,6 +28,10 @@ var stateKey = 'spotify_auth_state';
 var app = express();
 
 
+/*
+Routes: 
+*/
+//----------------------------------------------------------
 app.use(express.static(__dirname + '/public'))
     .use(cors())
     .use(cookieParser());
@@ -106,14 +110,28 @@ app.use(express.static(__dirname + '/public'))
     }
   });
 
-
-/*
-  @TODO: 
-    Clean up code
-    Proper Logging 
-    Proper Error Handling 
-*/
-
+  app.get('/refresh_token', function(req, res) {
+    // requesting access token from refresh token
+    var refresh_token = req.query.refresh_token;
+    var authOptions = {
+      url: 'https://accounts.spotify.com/api/token',
+      headers: { 'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')) },
+      form: {
+        grant_type: 'refresh_token',
+        refresh_token: refresh_token
+      },
+      json: true
+    };
+  
+    request.post(authOptions, function(error, response, body) {
+      if (!error && response.statusCode === 200) {
+        var access_token = body.access_token;
+        res.send({
+          'access_token': access_token
+        });
+      }
+    });
+  });
 
 app.get('/search', async function(req,res) {
     var access_token  = req.query.access_token
@@ -138,11 +156,50 @@ app.post('/create_playlist', async function(req,res) {
 app.post('/update_playlist', async function(req,res) {
   var trackInfo = req.body.trackInfo
   var playlistId  = req.body.playlistId
-  var playlist = await callAddSongsToPlaylist(access_token, trackInfo)
+  var playlist = await callAddSongsToPlaylist(access_token, trackInfo, playlistId)
 
   res.status(200).send(playlist)
 });
 
+
+/*
+--------------------------------------------------
+Logic:
+*/
+
+/*
+API call to consume SPOTIFY API. GET TRACKS
+*/
+const getTracks = async (access_token,url) => {
+  var options = {
+    url: url,
+    headers: { 'Authorization': 'Bearer ' + access_token },
+    json:true
+  }
+
+  let payload = await rq(options)
+  return payload
+}
+
+
+/*
+API call to consume to READ PLAYLISTs
+*/
+const callPlaylistApi = async (access_token, url) =>{
+  var options = {
+    url: url,
+    headers: { 'Authorization': 'Bearer ' + access_token },
+    json:true
+  }
+
+  let payload = await rq(options)
+  return payload
+}
+
+/*
+API call to CREATE A PLAYIST With Spotify API 
+Refactor, can pass in the URL
+*/
 const createPlayList = async (access_token,playlistName,description) =>{
   var options = {
     method: 'POST',
@@ -178,6 +235,15 @@ const addTrackPlaylist = async (access_token,playlistId,uris) =>{
   return payload
 }
 
+
+/*
+---------------------------------------
+App logic:
+*/
+
+/*
+Populating Playlist logic 
+*/
 const populatePlaylist = async (access_token,playlistId,uris) =>{
   var songs = []
   var songCounter = 0
@@ -210,34 +276,6 @@ const callAddSongsToPlaylist = async (access_token,tracks,playlistId) => {
 }
 
 
-const callPlaylistApi = async (access_token, url) =>{
-  var options = {
-    url: url,
-    headers: { 'Authorization': 'Bearer ' + access_token },
-    json:true
-  }
-
-  let payload = await rq(options)
-  return payload
-}
-
-const getTracks = async (access_token,url) => {
-    var options = {
-      url: url,
-      headers: { 'Authorization': 'Bearer ' + access_token },
-      json:true
-    }
-
-    let payload = await rq(options)
-    return payload
-}
-
-/*
- tracks: {
-    href: 'https://api.spotify.com/v1/playlists/4XA7qJO7AnflZLUJE6Gmeu/tracks',
-    total: 161
-  }
-*/
 var playlistIds = []
 var trackUrl =[]
 var getPlayListIds = function(playlists){
@@ -322,29 +360,15 @@ Make a file with all the api calls for the spotify api.
 Layer over the API
 
 Make a Pagination service thats only job is to paginate.
+
+  @TODO: 
+    Clean up code
+    Proper Logging 
+    Proper Error Handling 
+
+  Class that makes spotify API calls and returns a response 
+  Class that has all the bussiness logic 
+  This App class only has start server.
 */
-app.get('/refresh_token', function(req, res) {
-    // requesting access token from refresh token
-    var refresh_token = req.query.refresh_token;
-    var authOptions = {
-      url: 'https://accounts.spotify.com/api/token',
-      headers: { 'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64')) },
-      form: {
-        grant_type: 'refresh_token',
-        refresh_token: refresh_token
-      },
-      json: true
-    };
-  
-    request.post(authOptions, function(error, response, body) {
-      if (!error && response.statusCode === 200) {
-        var access_token = body.access_token;
-        res.send({
-          'access_token': access_token
-        });
-      }
-    });
-  });
-  
-  console.log('Listening on 8888');
-  app.listen(8888);
+console.log('Listening on 8888');
+app.listen(8888);

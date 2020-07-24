@@ -136,10 +136,12 @@ app.use(express.static(__dirname + '/public'))
 app.get('/search', async function(req,res) {
     var access_token  = req.query.access_token
     var search_input = req.query.search_input
-    var tracks = await apiOffset(access_token,search_input)
-    var trackInfo = await getTrackInfo(access_token, tracks)
 
-    // var playlist = await callAddSongsToPlaylist(access_token, trackInfo)
+    var tracks = await apiOffset(access_token,search_input)
+    if (tracks === null){
+      return res.status(400).send({"error":"Playlist not found"})
+    }
+    var trackInfo = await getTrackInfo(access_token, tracks)
     res.status(200).send(trackInfo)
 });
 
@@ -320,6 +322,7 @@ const getTrackInfo = async (access_token,trackUrls) => {
 
 var apiOffset = async function(access_token, search_input){
   //Create the url here?! 
+  console.log("INSIDE THS APIOFFSET METHOD")
   var url = 'https://api.spotify.com/v1/search?' +
     querystring.stringify({
       q: search_input,
@@ -327,6 +330,7 @@ var apiOffset = async function(access_token, search_input){
       limit: 50
     });
 
+    
     apiResults = await callPlaylistApi(access_token, url)
     playlists = apiResults.playlists
 
@@ -337,18 +341,21 @@ var apiOffset = async function(access_token, search_input){
     console.log(nextUrl)
     console.log("old offset " + offset)
 
-    //While next url is not null, to get all the values. 
-    while(offset != 100){
-      newResults = await callPlaylistApi(access_token, nextUrl)
-      getPlayListIds(newResults.playlists.items)
-      console.log(newResults.playlists.next)
-      offset = newResults.playlists.offset
-      nextUrl = newResults.playlists.next
-      console.log(newResults.playlists.next)
-      console.log("new offset "+ offset)
+    if(nextUrl !== null){
+      while(offset != 100){
+        newResults = await callPlaylistApi(access_token, nextUrl)
+        getPlayListIds(newResults.playlists.items)
+        console.log(newResults.playlists.next)
+        offset = newResults.playlists.offset
+        nextUrl = newResults.playlists.next
+        console.log(newResults.playlists.next)
+        console.log("new offset "+ offset)
+      }
+    }else{
+      return null
     }
-  
     console.log("length of playlist "+ playlistIds.length)
+  
   return trackUrl
 }
 
@@ -368,7 +375,7 @@ Make a Pagination service thats only job is to paginate.
 
   Class that makes spotify API calls and returns a response 
   Class that has all the bussiness logic 
-  This App class only has start server.
+  This App.js class only has start server.
 */
 console.log('Listening on 8888');
 app.listen(8888);

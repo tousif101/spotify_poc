@@ -1,10 +1,16 @@
 import React, { Component } from 'react';
 import './App.css';
+import Search from './Component/Search/Search';
 
 class App extends Component { 
   constructor(){
     super();
     const params = this.getHashParams();
+    const token = params.access_token;
+
+    this.state = {token: token};
+
+
     console.log(params);
   }
 
@@ -23,7 +29,11 @@ class App extends Component {
   render() {
     return (
       <div className='App'>
-        <a href='http://localhost:8888'> Login to Spotify</a>
+        {
+          this.state.token ? 
+          <Search token={this.state.token} /> :
+          <a href='http://localhost:8888'> Login to Spotify</a>
+        }
       </div>
     )
   }
